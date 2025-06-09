@@ -35,7 +35,11 @@ To use this repository, you'll need:
 
 ### 1. Setting Up Azure Backend and Service Principal
 
-This repository includes a setup script that:
+This repository includes setup scripts that help you create all necessary resources and permissions:
+
+#### 1.1 Setting up the backend infrastructure
+
+The `setup-azure-backend.sh` script:
 - Creates a storage account and container for Terraform state
 - Creates a service principal with OIDC authentication for GitHub Actions
 - Configures all necessary permissions
@@ -50,6 +54,24 @@ Run the script to set up everything in one command:
 The script will output all the values you need:
 - Backend configuration values for backend.tf
 - GitHub secrets to configure
+
+#### 1.2 Setting up federated credentials for GitHub Actions environments
+
+The `setup-federated-credentials.sh` script creates the necessary federation credentials for GitHub Actions, including the specific format needed for GitHub environments:
+
+```bash
+./setup-federated-credentials.sh <SUBSCRIPTION_ID> <CLIENT_ID> <GITHUB_REPO>
+```
+
+For example:
+```bash
+./setup-federated-credentials.sh ffbf501f-f220-4b59-8d0a-5068d961cc5f 12345678-1234-1234-1234-123456789012 hiddedesmet/terraform-github-actions
+```
+
+This will create three different federated credentials:
+1. For pushes to the main branch: `repo:owner/repo:ref:refs/heads/main`
+2. For pull requests: `repo:owner/repo:pull_request`
+3. For the dev environment: `repo:owner/repo:environment:dev`
 
 ### 2. Configure GitHub Repository Secrets
 

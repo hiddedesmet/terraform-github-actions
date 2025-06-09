@@ -44,12 +44,18 @@ jobs:
         terraform_version: 1.12.1
 
     # Authenticate to Azure using OIDC
+    # Note: When using GitHub environments, the subject claim will be in format:
+    # 'repo:owner/repo:environment:env-name'
+    # You must create a matching federated credential in Azure with exactly this format
+    # Use the setup-federated-credentials.sh script to create the required credentials
     - name: 'Az CLI login'
       uses: azure/login@v1
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        # Explicitly set audience to avoid issues with federated credential matching
+        audience: 'api://AzureADTokenExchange'
 
     # Initialize Terraform working directory
     - name: Terraform Init
