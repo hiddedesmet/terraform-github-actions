@@ -1,0 +1,24 @@
+# Example Terraform variables file
+# Copy this file to terraform.tfvars and customize the values for your deployment
+
+# Basic configuration
+resource_group_name   = "rg-terraform-demo-dev"
+location             = "West Europe"
+storage_account_name = "stterraformdemodev"
+
+# Storage account configuration
+storage_account_tier      = "Standard"
+storage_replication_type  = "LRS"
+
+# Blob configuration
+enable_blob_versioning   = true
+enable_delete_retention  = true
+delete_retention_days    = 14
+
+# Tags
+tags = {
+  Environment = "development"
+  Project     = "terraform-github-actions-demo"
+  ManagedBy   = "terraform"
+  Owner       = "your-team"
+}

@@ -1,0 +1,38 @@
+name: 'Terraform Validate'
+
+on:
+  push:
+    branches-ignore:
+      - main
+  # Run on any branch except main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: 'Validate'
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.12.1
+
+    # Initialize Terraform working directory
+    - name: Terraform Init
+      run: terraform init -backend=false
+      
+    # Validate Terraform configuration
+    - name: Terraform Validate
+      run: terraform validate
+
+    # Format check
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive

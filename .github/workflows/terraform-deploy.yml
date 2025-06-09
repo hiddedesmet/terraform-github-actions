@@ -1,0 +1,100 @@
+name: 'Terraform Deploy'
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Allow manual trigger
+  workflow_dispatch:
+
+# Set permissions for OIDC authentication with Azure
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+# Use concurrency to ensure only one workflow runs at a time
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Using GitHub secrets for all Azure credentials
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  # Don't set ARM_CLIENT_SECRET here - we're using OIDC
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: dev  # Updated to match your GitHub environment name
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.12.1
+
+    # Authenticate to Azure using OIDC
+    - name: 'Az CLI login'
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    # Initialize Terraform working directory
+    - name: Terraform Init
+      run: terraform init
+      # Note: When using az login with OIDC, the backend authentication will use the Azure CLI credentials
+
+    # Validate Terraform configuration
+    - name: Terraform Validate
+      run: terraform validate
+
+    # Create Terraform plan
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color -input=false -var-file=dev.tfvars
+      continue-on-error: true
+
+    # Add a comment to PR with Terraform plan output
+    - name: Add Plan Comment to PR
+      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request'
+      env:
+        PLAN: "${{ steps.plan.outputs.stdout }}"
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `#### Terraform Plan 📝\`${{ steps.plan.outcome }}\`
+          
+          <details><summary>Show Plan</summary>
+          
+          \`\`\`terraform
+          ${process.env.PLAN}
+          \`\`\`
+          
+          </details>
+          
+          *Pushed by: @${{ github.actor }}*`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    # Apply Terraform plan on push to main branch
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false -var-file=dev.tfvars
