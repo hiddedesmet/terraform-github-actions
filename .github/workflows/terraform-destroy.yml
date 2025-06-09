@@ -1,0 +1,199 @@
+name: 'Terraform Destroy'
+
+on:
+  # Only allow manual trigger for destruction operations
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "destroy" to confirm deletion of infrastructure'
+        required: true
+      environment:
+        description: 'Environment to destroy (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+# Set permissions for OIDC authentication with Azure
+permissions:
+  id-token: write
+  contents: read
+
+# Use concurrency to ensure only one workflow runs at a time
+concurrency:
+  group: terraform-destroy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Using GitHub secrets for all Azure credentials
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  # Don't set ARM_CLIENT_SECRET here - we're using OIDC
+
+jobs:
+  terraform:
+    name: 'Terraform Destroy'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    # Only proceed if the user explicitly typed "destroy" as confirmation
+    if: ${{ github.event.inputs.confirm_destroy == 'destroy' }}
+    
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.12.1
+
+    # Authenticate to Azure using OIDC
+    - name: 'Az CLI login'
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        # Explicitly set audience to avoid issues with federated credential matching
+        audience: 'api://AzureADTokenExchange'
+
+    # Initialize Terraform working directory
+    - name: Terraform Init
+      run: terraform init
+      # Note: When using az login with OIDC, the backend authentication will use the Azure CLI credentials
+
+    # Set environment variables for Terraform based on the selected environment
+    - name: Set Terraform variables for dev environment
+      if: ${{ github.event.inputs.environment == 'dev' }}
+      run: |
+        # Set environment variables with TF_VAR_ prefix for dev
+        echo "TF_VAR_resource_group_name=rg-terraform-demo-dev" >> $GITHUB_ENV
+        echo "TF_VAR_location=West Europe" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_name=stterradev" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_tier=Standard" >> $GITHUB_ENV
+        echo "TF_VAR_storage_replication_type=LRS" >> $GITHUB_ENV
+        echo "TF_VAR_enable_blob_versioning=true" >> $GITHUB_ENV
+        echo "TF_VAR_enable_delete_retention=true" >> $GITHUB_ENV
+        echo "TF_VAR_delete_retention_days=14" >> $GITHUB_ENV
+        
+        # For complex variables like maps, create a tfvars file for just those variables
+        cat > complex_vars.tfvars << 'EOF'
+        tags = {
+          Environment = "development"
+          Project     = "terraform-github-actions-demo"
+          ManagedBy   = "github-actions"
+          Owner       = "DevOps Team"
+          DeployedBy  = "GitHub Actions"
+          CreatedDate = "2025-06-09"
+        }
+        EOF
+        
+        echo "Environment variables set for dev environment"
+
+    # Set environment variables for Terraform based on the selected environment
+    - name: Set Terraform variables for test environment
+      if: ${{ github.event.inputs.environment == 'test' }}
+      run: |
+        # Set environment variables with TF_VAR_ prefix for test
+        echo "TF_VAR_resource_group_name=rg-terraform-demo-test" >> $GITHUB_ENV
+        echo "TF_VAR_location=West Europe" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_name=stterratest" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_tier=Standard" >> $GITHUB_ENV
+        echo "TF_VAR_storage_replication_type=LRS" >> $GITHUB_ENV
+        echo "TF_VAR_enable_blob_versioning=true" >> $GITHUB_ENV
+        echo "TF_VAR_enable_delete_retention=true" >> $GITHUB_ENV
+        echo "TF_VAR_delete_retention_days=14" >> $GITHUB_ENV
+        
+        # For complex variables like maps, create a tfvars file for just those variables
+        cat > complex_vars.tfvars << 'EOF'
+        tags = {
+          Environment = "test"
+          Project     = "terraform-github-actions-demo"
+          ManagedBy   = "github-actions"
+          Owner       = "DevOps Team"
+          DeployedBy  = "GitHub Actions"
+          CreatedDate = "2025-06-09"
+        }
+        EOF
+        
+        echo "Environment variables set for test environment"
+
+    # Set environment variables for Terraform based on the selected environment
+    - name: Set Terraform variables for prod environment
+      if: ${{ github.event.inputs.environment == 'prod' }}
+      run: |
+        # Set environment variables with TF_VAR_ prefix for prod
+        echo "TF_VAR_resource_group_name=rg-terraform-demo-prod" >> $GITHUB_ENV
+        echo "TF_VAR_location=West Europe" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_name=stterraprod" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_tier=Standard" >> $GITHUB_ENV
+        echo "TF_VAR_storage_replication_type=GRS" >> $GITHUB_ENV
+        echo "TF_VAR_enable_blob_versioning=true" >> $GITHUB_ENV
+        echo "TF_VAR_enable_delete_retention=true" >> $GITHUB_ENV
+        echo "TF_VAR_delete_retention_days=30" >> $GITHUB_ENV
+        
+        # For complex variables like maps, create a tfvars file for just those variables
+        cat > complex_vars.tfvars << 'EOF'
+        tags = {
+          Environment = "production"
+          Project     = "terraform-github-actions-demo"
+          ManagedBy   = "github-actions"
+          Owner       = "DevOps Team"
+          DeployedBy  = "GitHub Actions"
+          CreatedDate = "2025-06-09"
+        }
+        EOF
+        
+        echo "Environment variables set for prod environment"
+
+    # Generate a plan for what will be destroyed
+    - name: Terraform Plan Destroy
+      id: plan-destroy
+      run: terraform plan -destroy -no-color -input=false -var-file=complex_vars.tfvars
+      
+    # Add a safety delay with clear notice about what will be destroyed
+    - name: Pre-Destroy Warning
+      run: |
+        echo "⚠️ CAUTION: TERRAFORM DESTROY OPERATION STARTING IN 30 SECONDS ⚠️"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "This action will PERMANENTLY DELETE all resources managed by Terraform."
+        echo "Press Ctrl+C now if this is not what you want!"
+        sleep 30
+        echo "Proceeding with destroy operation..."
+
+    # Execute the destroy operation
+    - name: Terraform Destroy
+      run: terraform destroy -auto-approve -input=false -var-file=complex_vars.tfvars
+
+    # Verify destruction by listing resources (if any remain)
+    - name: Verify Resource Deletion
+      run: |
+        echo "Verifying that all resources have been deleted..."
+        RESOURCE_GROUP="${{ env.TF_VAR_resource_group_name }}"
+        
+        # Query for any resources that might still exist in the resource group
+        REMAINING_RESOURCES=$(az resource list --resource-group "$RESOURCE_GROUP" --query "length([*])" -o tsv 2>/dev/null || echo "0")
+        
+        # Check if resource group still exists
+        RG_EXISTS=$(az group exists --name "$RESOURCE_GROUP" -o tsv)
+        
+        if [ "$RG_EXISTS" = "true" ]; then
+          echo "⚠️ WARNING: Resource group $RESOURCE_GROUP still exists."
+          echo "There are $REMAINING_RESOURCES resources still in the resource group."
+          echo "You may need to manually delete any resources that were not managed by Terraform."
+          
+          # List any remaining resources for manual cleanup
+          if [ "$REMAINING_RESOURCES" -gt 0 ]; then
+            echo "Remaining resources:"
+            az resource list --resource-group "$RESOURCE_GROUP" --query "[].{name:name, type:type}" -o table
+          fi
+        else
+          echo "✅ Confirmed: Resource group $RESOURCE_GROUP has been deleted."
+        fi

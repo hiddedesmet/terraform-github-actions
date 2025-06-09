@@ -4,7 +4,7 @@
 # Basic configuration
 resource_group_name   = "rg-terraform-demo-dev"
 location             = "West Europe"
-storage_account_name = "stterraformdemodev"
+storage_account_name = "stterradev"
 
 # Storage account configuration
 storage_account_tier      = "Standard"

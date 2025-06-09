@@ -73,7 +73,7 @@ jobs:
         # These will be automatically picked up by Terraform
         echo "TF_VAR_resource_group_name=rg-terraform-demo-dev" >> $GITHUB_ENV
         echo "TF_VAR_location=West Europe" >> $GITHUB_ENV
-        echo "TF_VAR_storage_account_name=stterraformdemodev" >> $GITHUB_ENV
+        echo "TF_VAR_storage_account_name=stterradev" >> $GITHUB_ENV
         echo "TF_VAR_storage_account_tier=Standard" >> $GITHUB_ENV
         echo "TF_VAR_storage_replication_type=LRS" >> $GITHUB_ENV
         echo "TF_VAR_enable_blob_versioning=true" >> $GITHUB_ENV

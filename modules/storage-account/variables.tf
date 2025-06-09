@@ -3,6 +3,16 @@
 variable "name" {
   description = "Base name for the storage account (will have random suffix added)"
   type        = string
+  
+  validation {
+    condition     = length(var.name) >= 3 && length(var.name) <= 16
+    error_message = "Storage account base name must be between 3 and 16 characters (random suffix will be added)."
+  }
+  
+  validation {
+    condition     = can(regex("^[a-z0-9]+$", var.name))
+    error_message = "Storage account name can only contain lowercase letters and numbers."
+  }
 }
 
 variable "resource_group_name" {

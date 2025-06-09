@@ -21,6 +21,7 @@ This demo shows how to:
 - `.github/workflows/` - GitHub Actions workflows:
   - `terraform-deploy.yml` - Main deployment workflow for the main branch
   - `terraform-validate.yml` - Validation workflow for feature branches
+  - `terraform-destroy.yml` - Workflow for safely destroying resources
 - `modules/storage-account/` - Custom module for Azure Storage Account
 
 ## Prerequisites
@@ -131,7 +132,7 @@ git push origin main
 
 ## Workflow Execution
 
-This repository contains two GitHub Actions workflows:
+This repository contains three GitHub Actions workflows:
 
 ### Main Deployment Workflow (`terraform-deploy.yml`)
 
@@ -154,9 +155,38 @@ This workflow runs on all non-main branches:
    - Validate Terraform configuration syntax and structure
    - Check Terraform formatting
 
+### Destroy Workflow (`terraform-destroy.yml`)
+
+This workflow is manually triggered and includes safety mechanisms for resource cleanup:
+
+1. Manual trigger only with required confirmation:
+   - Must explicitly type "destroy" to confirm
+   - Must select target environment (dev, test, prod)
+
+2. When executed:
+   - Creates a destroy plan
+   - Displays a 30-second warning with abort option
+   - Executes the destroy operation
+   - Verifies resource deletion and reports any remaining resources
+
 ## Clean Up
 
-When you're done with the demo, remember to destroy the resources to avoid unnecessary costs:
+When you're done with the demo, you can clean up resources using either method:
+
+### Option 1: Using GitHub Actions (Recommended)
+
+1. Go to the "Actions" tab in your GitHub repository
+2. Select the "Terraform Destroy" workflow
+3. Click "Run workflow"
+4. Select the target environment (dev, test, prod)
+5. Type "destroy" in the confirmation field
+6. Click "Run workflow"
+
+The workflow includes safety measures and verification steps to ensure proper resource cleanup.
+
+### Option 2: Using Local Terraform
+
+Run the destroy command locally:
 
 ```bash
 terraform destroy -auto-approve

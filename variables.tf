@@ -18,8 +18,8 @@ variable "storage_account_name" {
   default     = "stterraformdemo"
   
   validation {
-    condition     = length(var.storage_account_name) >= 3 && length(var.storage_account_name) <= 24
-    error_message = "Storage account name must be between 3 and 24 characters long."
+    condition     = length(var.storage_account_name) >= 3 && length(var.storage_account_name) <= 16
+    error_message = "Storage account name must be between 3 and 16 characters long to leave room for the random suffix."
   }
   
   validation {

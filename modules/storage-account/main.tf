@@ -19,6 +19,9 @@ resource "random_string" "suffix" {
   length  = 8
   special = false
   upper   = false
+  numeric = true
+  lower   = true
+  min_numeric = 2  # Ensure at least some numbers are included
 }
 
 # Create the storage account
