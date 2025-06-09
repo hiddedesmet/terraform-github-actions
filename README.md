@@ -85,24 +85,39 @@ All Azure credentials are securely stored as GitHub secrets.
 
 ### 3. Environment-Specific Terraform Variables
 
-This repository is set up with environment-specific variable files:
+This repository follows best practices for handling Terraform variables in CI/CD:
 
-- `dev.tfvars` - Contains variables for the development environment
+#### In GitHub Actions Workflows:
 
-The GitHub Actions workflow automatically uses the `dev.tfvars` file when deploying to the `dev` environment.
+The workflow uses a combination of two approaches:
 
-For local development, you can create a `terraform.tfvars` file:
+1. **Environment Variables**: Simple variables are set using the `TF_VAR_` prefix, which Terraform automatically recognizes. This is the recommended approach for most variables.
+
+2. **Generated tfvars File**: Complex variables (like maps and lists) that are harder to express as environment variables are generated in a small `complex_vars.tfvars` file during the workflow execution.
+
+This hybrid approach provides several benefits:
+- Simple variables are easily visible in the workflow logs
+- No need to commit environment-specific files to the repository
+- Works well with GitHub environments and secrets
+- Complex data structures are still supported
+
+#### For Local Development:
+
+You can create a `terraform.tfvars` file for local use:
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your preferred values
 ```
 
-Or use the environment-specific file:
+For consistency with the CI/CD pipeline, you can also use environment variables:
 
 ```bash
-terraform plan -var-file=dev.tfvars
+export TF_VAR_resource_group_name="rg-terraform-demo-dev"
+terraform plan
 ```
+
+For a detailed overview of best practices and different approaches to managing Terraform variables in CI/CD, see [Terraform Variables Best Practices](docs/terraform-variables-best-practices.md).
 
 ### 4. Push to GitHub
 
